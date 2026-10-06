@@ -6,7 +6,7 @@
     android:background="#0A0B10"
     android:padding="16dp">
 
-    <!-- Header bar with Wallpaper Action -->
+    <!-- Header bar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -27,13 +27,13 @@
             android:id="@+id/btnWallpaper"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:text="Set Anime Wallpaper"
+            android:text="Set Wallpaper"
             android:textSize="11sp"
             android:backgroundTint="#FF4081"
             android:textColor="#FFFFFF" />
     </LinearLayout>
 
-    <!-- Chat display area -->
+    <!-- Chat area -->
     <ScrollView
         android:id="@+id/chatScroll"
         android:layout_width="match_parent"
@@ -68,7 +68,8 @@
             android:hint="Type a message..."
             android:textColorHint="#757575"
             android:textColor="#FFFFFF"
-            android:paddingHorizontal="14dp" />
+            android:paddingLeft="14dp"
+            android:paddingRight="14dp" />
 
         <Button
             android:id="@+id/sendButton"
