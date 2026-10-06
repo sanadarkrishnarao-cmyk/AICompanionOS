@@ -33,6 +33,16 @@
                 android:textStyle="bold" />
 
             <Button
+                android:id="@+id/btnLoadVideo"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Load"
+                android:textSize="11sp"
+                android:backgroundTint="#FF4081"
+                android:textColor="#FFFFFF"
+                android:layout_marginEnd="6dp" />
+
+            <Button
                 android:id="@+id/btnAppDrawer"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
@@ -42,12 +52,13 @@
                 android:textColor="#FFFFFF" />
         </LinearLayout>
 
-        <LinearLayout
+        <!-- Face area visible rakhne ke liye khali jagah -->
+        <View
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:orientation="vertical" />
+            android:layout_weight="1" />
 
+        <!-- Niche compact chat area -->
         <ScrollView
             android:id="@+id/chatScroll"
             android:layout_width="match_parent"
@@ -63,7 +74,7 @@
                 android:textColor="#FFFFFF"
                 android:textSize="14sp"
                 android:lineSpacingExtra="4dp"
-                android:text="AI OS ACTIVE • Live Companion Ready\n\n" />
+                android:text="AI Companion OS V4.0\n---------------------------------------\n\n" />
         </ScrollView>
 
         <LinearLayout
