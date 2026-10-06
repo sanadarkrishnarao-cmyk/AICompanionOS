@@ -64,10 +64,14 @@ public class MainActivity extends AppCompatActivity {
 
                 String apiKey = prefs.getString("gemini_key", "").trim();
 
-                if (isOnline() && !apiKey.isEmpty()) {
-                    callOnlineAI(userText, apiKey);
+                if (isOnline()) {
+                    if (apiKey.isEmpty()) {
+                        appendChat("AI (Notice)", "Internet ON hai, lekin API Key nahi dali hai. Upar 'API KEY' button par click karke apni free Gemini key paste karein.");
+                    } else {
+                        callOnlineAI(userText, apiKey);
+                    }
                 } else {
-                    String localReply = getSmartOfflineAIResponse(userText, apiKey.isEmpty());
+                    String localReply = getSmartOfflineAIResponse(userText);
                     appendChat("AI (Offline)", localReply);
                 }
             }
@@ -81,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
 
         new AlertDialog.Builder(this)
                 .setTitle("Set Gemini API Key")
-                .setMessage("Free key lene ke liye: aistudio.google.com")
+                .setMessage("Paste your key from aistudio.google.com")
                 .setView(input)
                 .setPositiveButton("Save", (dialog, which) -> {
                     String key = input.getText().toString().trim();
@@ -96,8 +100,9 @@ public class MainActivity extends AppCompatActivity {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm != null) {
             NetworkCapabilities caps = cm.getNetworkCapabilities(cm.getActiveNetwork());
-            return caps != null && (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-                    caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR));
+            if (caps != null) {
+                return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+            }
         }
         return false;
     }
@@ -110,67 +115,77 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void callOnlineAI(String prompt, String apiKey) {
+        appendChat("AI", "Thinking...");
+
         try {
             String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
 
-            JSONObject part = new JSONObject();
-            part.put("text", prompt);
+            JSONObject textPart = new JSONObject();
+            textPart.put("text", prompt);
 
-            JSONArray parts = new JSONArray();
-            parts.put(part);
+            JSONArray partsArray = new JSONArray();
+            partsArray.put(textPart);
 
-            JSONObject content = new JSONObject();
-            content.put("parts", parts);
+            JSONObject contentObject = new JSONObject();
+            contentObject.put("parts", partsArray);
 
-            JSONArray contents = new JSONArray();
-            contents.put(content);
+            JSONArray contentsArray = new JSONArray();
+            contentsArray.put(contentObject);
 
-            JSONObject root = new JSONObject();
-            root.put("contents", contents);
+            JSONObject jsonPayload = new JSONObject();
+            jsonPayload.put("contents", contentsArray);
 
-            RequestBody body = RequestBody.create(root.toString(), MediaType.parse("application/json; charset=utf-8"));
-            Request request = new Request.Builder().url(url).post(body).build();
+            RequestBody body = RequestBody.create(
+                    jsonPayload.toString(),
+                    MediaType.parse("application/json; charset=utf-8")
+            );
+
+            Request request = new Request.Builder()
+                    .url(url)
+                    .post(body)
+                    .build();
 
             httpClient.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
-                    mainHandler.post(() -> {
-                        String localReply = getSmartOfflineAIResponse(prompt, false);
-                        appendChat("AI (Fallback Offline)", localReply);
-                    });
+                    appendChat("AI (Network Error)", "Connection fail hua: " + e.getMessage() + "\nFallback Offline response: " + getSmartOfflineAIResponse(prompt));
                 }
 
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
-                    if (response.isSuccessful() && response.body() != null) {
-                        try {
-                            String responseBody = response.body().string();
-                            JSONObject json = new JSONObject(responseBody);
-                            String aiText = json.getJSONArray("candidates")
-                                    .getJSONObject(0)
-                                    .getJSONObject("content")
-                                    .getJSONArray("parts")
-                                    .getJSONObject(0)
-                                    .getString("text");
+                    if (response.body() == null) {
+                        appendChat("AI (Error)", "Empty response from Gemini server.");
+                        return;
+                    }
 
-                            appendChat("AI (Online)", aiText.trim());
-                        } catch (Exception ex) {
-                            appendChat("AI (Offline)", getSmartOfflineAIResponse(prompt, false));
-                        }
-                    } else {
-                        mainHandler.post(() -> {
-                            appendChat("AI (Offline)", getSmartOfflineAIResponse(prompt, false));
-                        });
+                    String respStr = response.body().string();
+
+                    if (!response.isSuccessful()) {
+                        appendChat("AI (API Error " + response.code() + ")", respStr);
+                        return;
+                    }
+
+                    try {
+                        JSONObject json = new JSONObject(respStr);
+                        String aiText = json.getJSONArray("candidates")
+                                .getJSONObject(0)
+                                .getJSONObject("content")
+                                .getJSONArray("parts")
+                                .getJSONObject(0)
+                                .getString("text");
+
+                        appendChat("AI (Online)", aiText.trim());
+                    } catch (Exception ex) {
+                        appendChat("AI (Parse Error)", "Jawab read nahi ho saka: " + ex.getMessage());
                     }
                 }
             });
         } catch (Exception e) {
-            appendChat("AI (Offline)", getSmartOfflineAIResponse(prompt, false));
+            appendChat("AI (Error)", e.getMessage());
         }
     }
 
-    // SMART OFFLINE ENGINE
-    private String getSmartOfflineAIResponse(String input, boolean keyMissing) {
+    private String getSmartOfflineAIResponse(String input) {
         String text = input.toLowerCase().trim();
 
         if (text.contains("namaste") || text.contains("hello") || text.contains("hi") || text.contains("hey")) {
@@ -186,26 +201,16 @@ public class MainActivity extends AppCompatActivity {
             String currentTime = new SimpleDateFormat("hh:mm a, dd MMM yyyy", Locale.getDefault()).format(new Date());
             return "Abhi ka samay aur tarikh: " + currentTime;
         }
+        if (text.contains("story") || text.contains("kahani")) {
+            return "[Offline Kahani]: Ek gaon me ek smart robot rehta tha jo bina internet ke bhi sabki madad karta tha. Ek din gaon ka network chala gaya, lekin robot ne apne offline brain se gaon ke sabhi roke hue kaam poore kiye!";
+        }
         if (text.contains("creator") || text.contains("kisne banaya") || text.contains("developer") || text.contains("owner")) {
             return "Mujhe aapne hi Termux aur Android source ke zariye build kiya hai!";
-        }
-        if (text.contains("kya kar sakte ho") || text.contains("features") || text.contains("capabilities")) {
-            return "Main offline me instant system answers, calculations, facts de sakta hoon, aur online aane par deep complex coding, stories, aur har sawal ka full LLM answer!";
         }
         if (text.contains("joke") || text.contains("chutkula")) {
             return "Ek programmer ne doosre se poocha: 'Duniya me 10 tarah ke log hote hain?'\nDusra bola: 'Kaise?'\nPehle ne kaha: 'Ek jo binary samajhte hain, aur doosre jo nahi!'";
         }
-        if (text.contains("motivat") || text.contains("shiksha")) {
-            return "Mushkilein sabke raste me aati hain, lekin jo har error se seekh kar aage badhta hai, wahi naya system khada karta hai!";
-        }
-        if (text.contains("bye") || text.contains("alvida") || text.contains("good night")) {
-            return "Alvida! Apna khayal rakhiye, main hamesha yahi par active hoon.";
-        }
 
-        if (keyMissing && isOnline()) {
-            return "Aapka Internet ON hai! Online super-intelligence unlock karne ke liye upar 'API Key' button daba kar apni free Gemini key paste karein.";
-        }
-
-        return "Maine aapki baat note kar li hai: \"" + input + "\". Offline database me iska basic record save hai. Deep explanation ke liye internet connect karein.";
+        return "Maine aapki baat note kar li hai: \"" + input + "\". Offline database me iska basic record save hai.";
     }
 }
