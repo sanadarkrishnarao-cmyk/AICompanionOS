@@ -62,13 +62,13 @@ public class MainActivity extends AppCompatActivity {
                 appendChat("You", userText);
                 messageInput.setText("");
 
-                String apiKey = prefs.getString("gemini_key", "").trim();
+                String apiKey = prefs.getString("ai_key", "").trim();
 
                 if (isOnline()) {
                     if (apiKey.isEmpty()) {
-                        appendChat("AI (Notice)", "Internet ON hai, lekin API Key nahi mili. Upar 'API KEY' button dabakar apni key paste karein.");
+                        appendChat("AI (Notice)", "Online brain use karne ke liye upar 'API KEY' button par apni free Groq API key set karein (console.groq.com).");
                     } else {
-                        callGeminiFlash(userText, apiKey);
+                        callGroqAI(userText, apiKey);
                     }
                 } else {
                     String localReply = getSmartOfflineAIResponse(userText);
@@ -80,17 +80,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void showApiKeyDialog() {
         EditText input = new EditText(this);
-        input.setHint("Paste Gemini API Key here");
-        input.setText(prefs.getString("gemini_key", ""));
+        input.setHint("Paste Groq API Key (gsk_...)");
+        input.setText(prefs.getString("ai_key", ""));
 
         new AlertDialog.Builder(this)
-                .setTitle("Set Gemini API Key")
-                .setMessage("Paste your key from Google AI Studio")
+                .setTitle("Set High-Speed AI Key")
+                .setMessage("Free Key: console.groq.com/keys")
                 .setView(input)
                 .setPositiveButton("Save", (dialog, which) -> {
                     String key = input.getText().toString().trim();
-                    prefs.edit().putString("gemini_key", key).apply();
-                    appendChat("System", "API Key successfully save ho gayi hai!");
+                    prefs.edit().putString("ai_key", key).apply();
+                    appendChat("System", "Groq AI Key successfully save ho gayi!");
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -116,36 +116,38 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void callGeminiFlash(String prompt, String apiKey) {
-        appendChat("AI", "Thinking...");
+    // High Speed Groq Cloud Engine (Llama 3.3 70B)
+    private void callGroqAI(String prompt, String apiKey) {
+        appendChat("AI", "Thinking (Lightning fast)...");
 
         try {
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+            String url = "https://api.groq.com/openai/v1/chat/completions";
 
-            JSONObject textPart = new JSONObject();
-            textPart.put("text", prompt);
+            JSONObject systemMsg = new JSONObject();
+            systemMsg.put("role", "system");
+            systemMsg.put("content", "You are an intelligent, helpful, witty companion OS assistant. Reply in clear Hindi or Hinglish or English based on user query.");
 
-            JSONArray partsArray = new JSONArray();
-            partsArray.put(textPart);
+            JSONObject userMsg = new JSONObject();
+            userMsg.put("role", "user");
+            userMsg.put("content", prompt);
 
-            JSONObject contentObject = new JSONObject();
-            contentObject.put("parts", partsArray);
+            JSONArray messages = new JSONArray();
+            messages.put(systemMsg);
+            messages.put(userMsg);
 
-            JSONArray contentsArray = new JSONArray();
-            contentsArray.put(contentObject);
-
-            JSONObject jsonPayload = new JSONObject();
-            jsonPayload.put("contents", contentsArray);
+            JSONObject payload = new JSONObject();
+            payload.put("model", "llama-3.3-70b-versatile");
+            payload.put("messages", messages);
 
             RequestBody body = RequestBody.create(
-                    jsonPayload.toString(),
+                    payload.toString(),
                     MediaType.parse("application/json; charset=utf-8")
             );
 
             Request request = new Request.Builder()
                     .url(url)
+                    .addHeader("Authorization", "Bearer " + apiKey)
                     .addHeader("Content-Type", "application/json")
-                    .addHeader("x-goog-api-key", apiKey)
                     .post(body)
                     .build();
 
@@ -160,29 +162,27 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
                     if (response.body() == null) {
-                        mainHandler.post(() -> appendChat("AI", "Khali response mila."));
+                        mainHandler.post(() -> appendChat("AI", "Empty response from server."));
                         return;
                     }
 
                     String respStr = response.body().string();
 
                     if (!response.isSuccessful()) {
-                        mainHandler.post(() -> appendChat("AI (API Error " + response.code() + ")", respStr));
+                        mainHandler.post(() -> appendChat("AI (Error " + response.code() + ")", respStr));
                         return;
                     }
 
                     try {
                         JSONObject json = new JSONObject(respStr);
-                        String aiText = json.getJSONArray("candidates")
+                        String answer = json.getJSONArray("choices")
                                 .getJSONObject(0)
-                                .getJSONObject("content")
-                                .getJSONArray("parts")
-                                .getJSONObject(0)
-                                .getString("text");
+                                .getJSONObject("message")
+                                .getString("content");
 
-                        mainHandler.post(() -> appendChat("AI (Online)", aiText.trim()));
+                        mainHandler.post(() -> appendChat("AI (Online)", answer.trim()));
                     } catch (Exception ex) {
-                        mainHandler.post(() -> appendChat("AI (Response)", respStr));
+                        mainHandler.post(() -> appendChat("AI", "Response parse error: " + ex.getMessage()));
                     }
                 }
             });
@@ -198,22 +198,22 @@ public class MainActivity extends AppCompatActivity {
             return "Namaste! Main AI Companion hoon. Kahiye, main aapki kya madad karoon?";
         }
         if (text.contains("naam") || text.contains("name") || text.contains("who are you") || text.contains("kaun ho")) {
-            return "Mera naam 'AI Companion OS' hai. Main aapka personal offline-online hybrid companion hoon.";
+            return "Mera naam 'AI Companion OS' hai. Main offline aur high-speed online dono modes me chalta hoon.";
         }
         if (text.contains("kaise ho") || text.contains("how are you") || text.contains("kya haal")) {
             return "Main bilkul badiya aur active hoon! Aap batayein, aaj ka din kaisa chal raha hai?";
         }
         if (text.contains("time") || text.contains("samay") || text.contains("waqt") || text.contains("date") || text.contains("tarikh")) {
             String currentTime = new SimpleDateFormat("hh:mm a, dd MMM yyyy", Locale.getDefault()).format(new Date());
-            return "Abhi ka samay aur tarikh: " + currentTime;
+            return "Abhi ka samay: " + currentTime;
         }
         if (text.contains("story") || text.contains("kahani")) {
-            return "[Offline Kahani]: Ek gaon me ek robot rehta tha jo bina internet ke bhi sabki madad karta tha. Ek din jab network chala gaya, tab bhi usne apne offline memory se gaon ke saare kaam poore karwa diye!";
+            return "[Offline Kahani]: Ek chhota sa robot tha jo bina network ke bhi zameen par har mushkil kaam akele hal kar leta tha. Uska usool tha: chahe signal ho ya na ho, kaam nahi rukna chahiye!";
         }
         if (text.contains("joke") || text.contains("chutkula")) {
-            return "Ek programmer ne doosre se poocha: 'Duniya me 10 tarah ke log hote hain?' Dusra bola: 'Kaise?' Pehle ne kaha: 'Ek jo binary samajhte hain, aur doosre jo nahi!'";
+            return "Ek dost ne poocha: 'Tera phone itna smart kaise ho gaya?'\nPehle ne kaha: 'Kyunki isme AI Companion OS install hai!'";
         }
 
-        return "Maine aapki baat note kar li hai: \"" + input + "\". Offline core active hai.";
+        return "Maine aapki baat offline memory me note kar li hai: \"" + input + "\".";
     }
 }
