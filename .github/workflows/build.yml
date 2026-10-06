@@ -22,10 +22,13 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Install and Build with Gradle
+    - name: Download Official Gradle and Build
       run: |
-        sudo apt-get install -y gradle
-        gradle assembleDebug --no-daemon --stacktrace
+        wget https://services.gradle.org/distributions/gradle-8.2-bin.zip
+        unzip -q gradle-8.2-bin.zip
+        export PATH=$PWD/gradle-8.2/bin:$PATH
+        gradle wrapper
+        ./gradlew assembleDebug --no-daemon --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
