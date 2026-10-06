@@ -136,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
             messages.put(userMsg);
 
             JSONObject payload = new JSONObject();
-            payload.put("model", "llama-3.3-70b-versatile");
+            payload.put("model", "llama-3.1-8b-instant");
             payload.put("messages", messages);
 
             RequestBody body = RequestBody.create(
