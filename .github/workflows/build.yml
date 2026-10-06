@@ -22,11 +22,10 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Build with Gradle Directly
-      uses: gradle/gradle-build-action@v3
-      with:
-        gradle-version: 8.2
-        arguments: assembleDebug --stacktrace
+    - name: Install and Build with Gradle
+      run: |
+        sudo apt-get install -y gradle
+        gradle assembleDebug --no-daemon --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
