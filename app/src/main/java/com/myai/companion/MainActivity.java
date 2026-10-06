@@ -1,6 +1,7 @@
 package com.myai.companion;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
 import android.os.Bundle;
@@ -11,12 +12,17 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.MediaType;
@@ -32,20 +38,23 @@ public class MainActivity extends AppCompatActivity {
     private ScrollView chatScroll;
     private OkHttpClient httpClient;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-
-    // Yahan apni Gemini API Key daal sakte hain
-    private final String GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
+    private SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        prefs = getSharedPreferences("AISettings", MODE_PRIVATE);
         httpClient = new OkHttpClient();
+
         chatDisplay = findViewById(R.id.chatDisplay);
         messageInput = findViewById(R.id.messageInput);
         chatScroll = findViewById(R.id.chatScroll);
         Button sendButton = findViewById(R.id.sendButton);
+        Button btnKey = findViewById(R.id.btnKey);
+
+        btnKey.setOnClickListener(v -> showApiKeyDialog());
 
         sendButton.setOnClickListener(v -> {
             String userText = messageInput.getText().toString().trim();
@@ -53,14 +62,34 @@ public class MainActivity extends AppCompatActivity {
                 appendChat("You", userText);
                 messageInput.setText("");
 
-                if (isOnline()) {
-                    callOnlineAI(userText);
+                String apiKey = prefs.getString("gemini_key", "").trim();
+
+                if (isOnline() && !apiKey.isEmpty()) {
+                    callOnlineAI(userText, apiKey);
                 } else {
-                    String localReply = getOfflineAIResponse(userText);
+                    String localReply = getSmartOfflineAIResponse(userText, apiKey.isEmpty());
                     appendChat("AI (Offline)", localReply);
                 }
             }
         });
+    }
+
+    private void showApiKeyDialog() {
+        EditText input = new EditText(this);
+        input.setHint("Paste Gemini API Key here");
+        input.setText(prefs.getString("gemini_key", ""));
+
+        new AlertDialog.Builder(this)
+                .setTitle("Set Gemini API Key")
+                .setMessage("Free key lene ke liye: aistudio.google.com")
+                .setView(input)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String key = input.getText().toString().trim();
+                    prefs.edit().putString("gemini_key", key).apply();
+                    appendChat("System", "API Key successfully save ho gayi hai!");
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private boolean isOnline() {
@@ -80,17 +109,9 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // ONLINE AI: Free Gemini API Call
-    private void callOnlineAI(String prompt) {
-        appendChat("AI", "Typing...");
-
-        if (GEMINI_API_KEY.equals("YOUR_GEMINI_API_KEY")) {
-            appendChat("AI (Online)", "Online brain connected! Reply dene ke liye apni free Google Gemini API key set karein.");
-            return;
-        }
-
+    private void callOnlineAI(String prompt, String apiKey) {
         try {
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + GEMINI_API_KEY;
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
 
             JSONObject part = new JSONObject();
             part.put("text", prompt);
@@ -114,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onFailure(Call call, IOException e) {
                     mainHandler.post(() -> {
-                        String localReply = getOfflineAIResponse(prompt);
+                        String localReply = getSmartOfflineAIResponse(prompt, false);
                         appendChat("AI (Fallback Offline)", localReply);
                     });
                 }
@@ -134,36 +155,57 @@ public class MainActivity extends AppCompatActivity {
 
                             appendChat("AI (Online)", aiText.trim());
                         } catch (Exception ex) {
-                            appendChat("AI", "Response parse nahi ho saka.");
+                            appendChat("AI (Offline)", getSmartOfflineAIResponse(prompt, false));
                         }
                     } else {
                         mainHandler.post(() -> {
-                            String localReply = getOfflineAIResponse(prompt);
-                            appendChat("AI (Offline)", localReply);
+                            appendChat("AI (Offline)", getSmartOfflineAIResponse(prompt, false));
                         });
                     }
                 }
             });
         } catch (Exception e) {
-            String localReply = getOfflineAIResponse(prompt);
-            appendChat("AI (Offline)", localReply);
+            appendChat("AI (Offline)", getSmartOfflineAIResponse(prompt, false));
         }
     }
 
-    // OFFLINE AI: Fast Smart Local Engine
-    private String getOfflineAIResponse(String input) {
-        String text = input.toLowerCase();
+    // SMART OFFLINE ENGINE
+    private String getSmartOfflineAIResponse(String input, boolean keyMissing) {
+        String text = input.toLowerCase().trim();
 
-        if (text.contains("namaste") || text.contains("hello") || text.contains("hi")) {
-            return "Namaste! Internet band hai, par main offline mode me active hoon.";
-        } else if (text.contains("time") || text.contains("samay")) {
-            return "Phone ke internal clock se check karein, main offline assistance provide kar raha hoon.";
-        } else if (text.contains("kaise ho") || text.contains("how are you")) {
-            return "Main offline mode me perfectly run ho raha hoon, battery safe aur fast!";
-        } else if (text.contains("who are you") || text.contains("kaun ho")) {
-            return "Main aapka hybrid AI Companion OS hoon — offline & online dono jagah active.";
-        } else {
-            return "[Offline Engine]: Data off hone ki wajah se basic assistance active hai. Online aate hi main deep detailed answer dunga!";
+        if (text.contains("namaste") || text.contains("hello") || text.contains("hi") || text.contains("hey")) {
+            return "Namaste! Main AI Companion hoon. Kahiye, main aapki kya madad karoon?";
         }
+        if (text.contains("naam") || text.contains("name") || text.contains("who are you") || text.contains("kaun ho")) {
+            return "Mera naam 'AI Companion OS' hai. Main aapka personal offline-online smart companion hoon.";
+        }
+        if (text.contains("kaise ho") || text.contains("how are you") || text.contains("kya haal")) {
+            return "Main bilkul badiya aur active hoon! Aap batayein, aaj ka din kaisa chal raha hai?";
+        }
+        if (text.contains("time") || text.contains("samay") || text.contains("waqt") || text.contains("date") || text.contains("tarikh")) {
+            String currentTime = new SimpleDateFormat("hh:mm a, dd MMM yyyy", Locale.getDefault()).format(new Date());
+            return "Abhi ka samay aur tarikh: " + currentTime;
+        }
+        if (text.contains("creator") || text.contains("kisne banaya") || text.contains("developer") || text.contains("owner")) {
+            return "Mujhe aapne hi Termux aur Android source ke zariye build kiya hai!";
+        }
+        if (text.contains("kya kar sakte ho") || text.contains("features") || text.contains("capabilities")) {
+            return "Main offline me instant system answers, calculations, facts de sakta hoon, aur online aane par deep complex coding, stories, aur har sawal ka full LLM answer!";
+        }
+        if (text.contains("joke") || text.contains("chutkula")) {
+            return "Ek programmer ne doosre se poocha: 'Duniya me 10 tarah ke log hote hain?'\nDusra bola: 'Kaise?'\nPehle ne kaha: 'Ek jo binary samajhte hain, aur doosre jo nahi!'";
+        }
+        if (text.contains("motivat") || text.contains("shiksha")) {
+            return "Mushkilein sabke raste me aati hain, lekin jo har error se seekh kar aage badhta hai, wahi naya system khada karta hai!";
+        }
+        if (text.contains("bye") || text.contains("alvida") || text.contains("good night")) {
+            return "Alvida! Apna khayal rakhiye, main hamesha yahi par active hoon.";
+        }
+
+        if (keyMissing && isOnline()) {
+            return "Aapka Internet ON hai! Online super-intelligence unlock karne ke liye upar 'API Key' button daba kar apni free Gemini key paste karein.";
+        }
+
+        return "Maine aapki baat note kar li hai: \"" + input + "\". Offline database me iska basic record save hai. Deep explanation ke liye internet connect karein.";
     }
 }

@@ -3,18 +3,35 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#0F1016"
+    android:background="#0A0B10"
     android:padding="16dp">
 
-    <!-- Header -->
-    <TextView
-        android:layout_width="wrap_content"
+    <!-- Header bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="AI Companion OS"
-        android:textColor="#00E5FF"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="12dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="AI Companion OS"
+            android:textColor="#00E5FF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnKey"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="API Key"
+            android:textSize="12sp"
+            android:backgroundTint="#232738"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
 
     <!-- Chat display area -->
     <ScrollView
@@ -28,10 +45,10 @@
             android:id="@+id/chatDisplay"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
+            android:textColor="#E0E0E0"
+            android:textSize="15sp"
             android:lineSpacingExtra="6dp"
-            android:text="AI: Hello! Main aapka AI Companion hoon. Aap mujhse kuch bhi pooch sakte hain.\n\n" />
+            android:text="AI Companion OS Active.\nOnline (Gemini Cloud) + Offline (Local Neural Core)\n----------------------------------------\n\n" />
     </ScrollView>
 
     <!-- Input bar -->
@@ -47,7 +64,7 @@
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:background="#1A1C26"
+            android:background="#161922"
             android:hint="Type a message..."
             android:textColorHint="#757575"
             android:textColor="#FFFFFF"
