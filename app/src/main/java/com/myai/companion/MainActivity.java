@@ -81,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
                 messageInput.setText("");
 
                 String reply = getReply(text);
-                appendChat("AI Companion", reply);
+                appendChat("Companion", reply);
                 speakText(reply);
             }
         });
@@ -125,8 +125,8 @@ public class MainActivity extends AppCompatActivity {
         mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
 
         List<ResolveInfo> list = pm.queryIntentActivities(mainIntent, 0);
-        List<String> appNames = new ArrayList<>();
-        List<Intent> launchIntents = new ArrayList<>();
+        final List<String> appNames = new ArrayList<>();
+        final List<Intent> launchIntents = new ArrayList<>();
 
         for (ResolveInfo info : list) {
             String pkg = info.activityInfo.packageName;
@@ -154,19 +154,19 @@ public class MainActivity extends AppCompatActivity {
     private String getReply(String input) {
         String q = input.toLowerCase().trim();
         if (q.contains("namaste") || q.contains("hello") || q.contains("hi")) {
-            return "Namaste! Main aapka live Anime OS Companion hoon. Kahiye kya sewa karoon?";
+            return "Namaste! Main aapka AI Companion hoon. Kahiye kya madad karoon?";
         }
         if (q.contains("time") || q.contains("samay")) {
-            return "Abhi ka waqt hai: " + new SimpleDateFormat("hh:mm a", Locale.getDefault()).format(new Date());
+            return "Samay hai: " + new SimpleDateFormat("hh:mm a", Locale.getDefault()).format(new Date());
         }
         if (q.contains("kaun ho") || q.contains("who are you")) {
-            return "Main aapka personal AI Companion OS hoon!";
+            return "Main aapka live anime AI companion OS hoon!";
         }
         if (q.contains("apps") || q.contains("drawer")) {
             mainHandler.post(this::openAppDrawer);
-            return "Apps Drawer khol diya hai!";
+            return "Apps open kar di hain.";
         }
-        return "Maine aapki baat suni: \"" + input + "\"";
+        return "Maine suna: \"" + input + "\"";
     }
 
     private void speakText(String text) {
